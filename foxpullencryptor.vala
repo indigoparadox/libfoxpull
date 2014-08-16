@@ -17,6 +17,7 @@
 
 using GLib;
 using Soup;
+using Json;
 
 /* Functions from SSL bridge. */
 extern string libfoxpull_decrypt( 
@@ -83,6 +84,7 @@ public class FoxPullEncryptor : GLib.Object {
       data = (string)message.response_body.flatten().data;
 
       // FF Sync seems to return some wonky JSON with quoted objects.
+      // TODO: Actually, payload might just be another JSON string.
       data = data
          .replace( "\"{", "{" )
          .replace( "}\"", "}" )
@@ -141,6 +143,7 @@ public class FoxPullEncryptor : GLib.Object {
       string data_plaintext;
       Json.Parser parser;
       Json.Object root_object;
+      Json.Object payload_object;
 
       data_json = this.request_encrypted( path );
       parser = new Json.Parser();
@@ -150,23 +153,23 @@ public class FoxPullEncryptor : GLib.Object {
       // TODO: Handle missing payload.
 
       // Grab the parts of the encrypted payload.
-      data_ciphertext = root_object.get_object_member( "payload" )
-                                   .get_string_member( "ciphertext" );
+      payload_object = root_object.get_object_member( "payload" );
+      if( null != payload_object ) {
+         data_ciphertext = payload_object.get_string_member( "ciphertext" );
+         data_ciphertext_decoded = GLib.Base64.decode( data_ciphertext );
+         data_iv = payload_object.get_string_member( "IV" );
+         data_iv_decoded = GLib.Base64.decode( data_iv );
 
-      data_ciphertext_decoded = GLib.Base64.decode( data_ciphertext );
-
-      data_iv = root_object.get_object_member( "payload" )
-                           .get_string_member( "IV" );
-
-      data_iv_decoded = GLib.Base64.decode( data_iv );
-
-      if( null == (data_plaintext = libfoxpull_decrypt( 
-         data_ciphertext_decoded,
-         data_ciphertext_decoded.length,
-         data_iv_decoded,
-         key
-      )) ) {
-         // TODO
+         if( null == (data_plaintext = libfoxpull_decrypt( 
+            data_ciphertext_decoded,
+            data_ciphertext_decoded.length,
+            data_iv_decoded,
+            key
+         )) ) {
+            // TODO
+         }
+      } else {
+         data_plaintext = data_json;
       }
 
       return data_plaintext;

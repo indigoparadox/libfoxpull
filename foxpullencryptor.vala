@@ -23,8 +23,8 @@ public class FoxPullEncryptor : GLib.Object {
    private string server;
    private string userhash;
    private string password;
-   private string localkey;
    private string syncapi = "1.0";
+   private uint8[] privkey;
 
    private void on_auth( Message msg, Auth auth, bool retry ) {
       auth.authenticate( this.userhash, this.password );
@@ -84,7 +84,7 @@ public class FoxPullEncryptor : GLib.Object {
       return data;
    }
 
-   private string digest_key( string key ) {
+   private uint8[] digest_key( string key ) {
       string normalized_key;
       unowned uint8[] normalized_key_encoded;
       string formatted_hash;
@@ -113,15 +113,23 @@ public class FoxPullEncryptor : GLib.Object {
          GLib.ChecksumType.SHA256,
          normalized_key_encoded,
          formatted_hash
-      );
+      ).data;
    }
 
-   private string decrypt( string ciphertext, string hmac, string iv ) {
+   private string decrypt(
+      string ciphertext, string hmac, string iv, uint8[] key
+   ) {
       // TODO
       return ciphertext;
    }
 
-   public string request_plain( string path ) {
+   public string request_plain( string path ) throws GLib.Error {
+      return this.request_plain_with_key( path, this.privkey );
+   }
+
+   public string request_plain_with_key(
+      string path, uint8[] key
+   ) throws GLib.Error {
       string data_ciphertext;
       string data_hmac;
       string data_iv;
@@ -133,7 +141,8 @@ public class FoxPullEncryptor : GLib.Object {
       parser = new Json.Parser();
       parser.load_from_data( data_json );
       root_object = parser.get_root().get_object();
-      //payload = json.loads( data['payload'] )
+
+      // TODO: Handle missing payload.
 
       // Grab the parts of the encrypted payload.
       data_ciphertext = root_object.get_object_member( "payload" )
@@ -145,7 +154,7 @@ public class FoxPullEncryptor : GLib.Object {
       data_iv = root_object.get_object_member( "payload" )
                            .get_string_member( "IV" );
 
-      return this.decrypt( data_ciphertext, data_hmac, data_iv );
+      return this.decrypt( data_ciphertext, data_hmac, data_iv, key );
    }
 
    public FoxPullEncryptor(
@@ -155,24 +164,26 @@ public class FoxPullEncryptor : GLib.Object {
       string key
    ) {
       string default_key;
+      uint8[] local_key;
 
       // Setup member fields.
       this.server = server;
       this.userhash = this.encode_username( username );
       this.password = password;
-      // self.node = self._request_node().rstrip( '/' )
-      this.localkey = this.digest_key( key );
+      local_key = this.digest_key( key );
 
       try {
-         default_key = this.request_plain( "storage/crypto/keys" );
+         default_key = this.request_plain_with_key(
+            "storage/crypto/keys",
+            local_key
+         );
+         this.privkey = GLib.Base64.decode( default_key );
       } catch( Error e ) {
          // TODO
       }
 
-      //stdout.printf( "%s\n", default_key );
-
+      // TODO
       //this.privkey = default_key[0].decode( 'base64' );
-      //this.privhmac = default_key[1].decode( 'base64' );
    }
 }
 

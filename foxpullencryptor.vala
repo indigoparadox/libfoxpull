@@ -19,8 +19,8 @@ using GLib;
 using Soup;
 
 extern unowned string libfoxpull_decrypt( 
-   uint8[] ciphertext, int ciphertext_len,
-   uint8[] iv, uint8[] key
+   uint8* ciphertext, int ciphertext_len,
+   uint8* iv, uint8* key
 );
 
 public class FoxPullEncryptor : GLib.Object {
@@ -92,6 +92,9 @@ public class FoxPullEncryptor : GLib.Object {
       unowned uint8[] normalized_key_encoded;
       string formatted_hash;
       int padding;
+      GLib.Hmac key_hmac;
+      uint8 hmac_bytes[255] = { 0 }; // Hopefully sufficient for now.
+      size_t hmac_len = 255;
 
       // Strip out/replace invalid characters.
       normalized_key = key
@@ -105,18 +108,45 @@ public class FoxPullEncryptor : GLib.Object {
       for( int i = 0; padding > i ; i++ ) {
          normalized_key.concat( "=" );
       }
-      normalized_key_encoded = Base32.encode( normalized_key.data );
+      normalized_key_encoded = Base32.decode( normalized_key.data );
 
       // '{}{}\x01'.format( 'Sync-AES_256_CBC-HMAC256', self.userhash ),
-      formatted_hash = "Sync-AES_256_CBC-HMAC256%s\x01".printf(
-         this.userhash
+      formatted_hash = "Sync-AES_256_CBC-HMAC256%s%c".printf(
+         this.userhash, 0x01
       );
 
+      // The get_digest() method really needs work.
+      // XXX: Something wrong with GLib's Hmac algorithm.
+      key_hmac = new GLib.Hmac(
+         GLib.ChecksumType.SHA256, normalized_key_encoded
+      );
+      key_hmac.update( formatted_hash.data, formatted_hash.length );
+      key_hmac.get_digest( hmac_bytes, ref hmac_len );
+
+      // It took a lot of experimentation to find a way vala would accept to
+      // chop the rest of the buffer off.
+      var hmac_bytes_trim = new uint8[hmac_len];
+      for( int i = 0 ; i < hmac_len ; i++ ) {
+         hmac_bytes_trim[i] = hmac_bytes[i];
+      }
+
+      stdout.printf( "hmac bytes: %s\n", (string)hmac_bytes_trim );
+
+      return hmac_bytes_trim;
+
+      // Encode the binary checksum and return it.
+      /*
+      username_hash_encoded = Base32.encode( checksum_bytes_trim );
+      return ((string)username_hash_encoded).down();
+      */
+
+      /*
       return GLib.Hmac.compute_for_string(
          GLib.ChecksumType.SHA256,
          normalized_key_encoded,
          formatted_hash
       ).data;
+      */
    }
 
    /*
@@ -168,6 +198,7 @@ public class FoxPullEncryptor : GLib.Object {
       data_iv_decoded = GLib.Base64.decode( data_iv );
 
       stdout.printf( "%d\n", data_iv_decoded.length );
+      stdout.printf( "%s\n", GLib.Base64.encode( (uchar[])key ) );
 
       if( null == (data_plaintext = libfoxpull_decrypt( 
          data_ciphertext_decoded,
@@ -178,6 +209,8 @@ public class FoxPullEncryptor : GLib.Object {
          // TODO
       }
       //return this.decrypt( data_ciphertext, data_hmac, data_iv, key );
+
+      stdout.printf( "%s\n", data_plaintext );
 
       return data_plaintext;
    }
@@ -200,6 +233,8 @@ public class FoxPullEncryptor : GLib.Object {
       this.userhash = this.encode_username( username );
       this.password = password;
       local_key = this.digest_key( key );
+
+      stdout.printf( "local key: %s\n", (string)local_key );
 
       try {
          // XXX

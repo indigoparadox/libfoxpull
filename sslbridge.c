@@ -1,19 +1,17 @@
 
-#include <stdint.h>
+#include <glib.h>
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
-char* libfoxpull_decrypt(
-   uint8_t ciphertext[], int ciphertext_len, uint8_t iv[], uint8_t key[]
+gchar* libfoxpull_decrypt(
+   guint8* ciphertext, gint ciphertext_len, guint8* iv, guint8* key
 ) {
    int inter_plaintext_len = 0;
    int real_plaintext_len = 0;
    EVP_CIPHER_CTX* ctx = NULL;
    char* plaintext_out = NULL;
 
-   printf( "%s\n", ciphertext );
-   
    plaintext_out = calloc( ciphertext_len * 2, sizeof( char ) );
 
    ERR_load_crypto_strings();
@@ -21,20 +19,28 @@ char* libfoxpull_decrypt(
    OPENSSL_config( NULL );
 
    if( !(ctx = EVP_CIPHER_CTX_new()) ) {
+      BIO_dump_fp( stderr, ciphertext, ciphertext_len );
+      ERR_print_errors_fp( stderr );
       free( plaintext_out );
       plaintext_out = NULL;
       goto cleanup;
    }
 
-   if( 1 != EVP_DecryptInit_ex( ctx, EVP_aes_256_cbc(), NULL, key, iv ) ) {
+   EVP_CIPHER_CTX_set_padding( ctx, 0 );
+
+   if( !EVP_DecryptInit_ex( ctx, EVP_aes_256_cbc(), NULL, key, iv ) ) {
+      BIO_dump_fp( stderr, ciphertext, ciphertext_len );
+      ERR_print_errors_fp( stderr );
       free( plaintext_out );
       plaintext_out = NULL;
       goto cleanup;
    }
 
-   if( 1 != EVP_DecryptUpdate(
+   if( !EVP_DecryptUpdate(
       ctx, plaintext_out, &inter_plaintext_len, ciphertext, ciphertext_len
    ) ) {
+      BIO_dump_fp( stderr, ciphertext, ciphertext_len );
+      ERR_print_errors_fp( stderr );
       free( plaintext_out );
       plaintext_out = NULL;
       goto cleanup;
@@ -50,17 +56,16 @@ char* libfoxpull_decrypt(
    }
    #endif
 
-   /*
-   if( 1 != EVP_DecryptFinal_ex(
+   if( !EVP_DecryptFinal_ex(
       ctx, plaintext_out + real_plaintext_len, &inter_plaintext_len
    ) ) {
-      printf( "foo\n" );
+      BIO_dump_fp( stderr, ciphertext, ciphertext_len );
+      ERR_print_errors_fp( stderr );
       free( plaintext_out );
       plaintext_out = NULL;
       goto cleanup;
    }
    real_plaintext_len += inter_plaintext_len;
-   */
 
    #if 0
    if( real_plaintext_len > plaintext_out_len ) {
@@ -84,3 +89,4 @@ cleanup:
    
    return plaintext_out;
 }
+

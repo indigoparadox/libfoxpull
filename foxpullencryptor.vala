@@ -18,6 +18,11 @@
 using GLib;
 using Soup;
 
+extern unowned string libfoxpull_decrypt( 
+   uint8[] ciphertext, int ciphertext_len,
+   uint8[] iv, uint8[] key
+);
+
 public class FoxPullEncryptor : GLib.Object {
 
    private string server;
@@ -63,8 +68,6 @@ public class FoxPullEncryptor : GLib.Object {
       url = "%s/%s/%s/%s".printf(
          this.server, this.syncapi, this.userhash, path
       );
-
-      stdout.printf( "%s\n", url );
 
       // Perform the actual request.
       session = new Soup.Session();
@@ -116,20 +119,25 @@ public class FoxPullEncryptor : GLib.Object {
       ).data;
    }
 
+   /*
    private string decrypt(
       string ciphertext, string hmac, string iv, uint8[] key
    ) {
       // TODO
       return ciphertext;
    }
+   */
 
    private string request_plain_with_key(
       string path, uint8[] key
    ) throws GLib.Error {
       string data_ciphertext;
-      string data_hmac;
+      //string data_hmac;
       string data_iv;
       string data_json;
+      uint8[] data_ciphertext_decoded;
+      uint8[] data_iv_decoded;
+      unowned string data_plaintext;
       Json.Parser parser;
       Json.Object root_object;
 
@@ -144,13 +152,34 @@ public class FoxPullEncryptor : GLib.Object {
       data_ciphertext = root_object.get_object_member( "payload" )
                                    .get_string_member( "ciphertext" );
 
+      data_ciphertext_decoded = GLib.Base64.decode( data_ciphertext );
+
+      stdout.printf( "%s\n", data_ciphertext );
+      //stdout.printf( "%s\n", data_ciphertext_decoded );
+
+      /*
       data_hmac = root_object.get_object_member( "payload" )
                              .get_string_member( "hmac" );
+      */
 
       data_iv = root_object.get_object_member( "payload" )
                            .get_string_member( "IV" );
 
-      return this.decrypt( data_ciphertext, data_hmac, data_iv, key );
+      data_iv_decoded = GLib.Base64.decode( data_iv );
+
+      stdout.printf( "%d\n", data_iv_decoded.length );
+
+      if( null == (data_plaintext = libfoxpull_decrypt( 
+         data_ciphertext_decoded,
+         data_ciphertext_decoded.length,
+         data_iv_decoded,
+         key
+      )) ) {
+         // TODO
+      }
+      //return this.decrypt( data_ciphertext, data_hmac, data_iv, key );
+
+      return data_plaintext;
    }
 
    public string request_plain( string path ) throws GLib.Error {
@@ -173,6 +202,7 @@ public class FoxPullEncryptor : GLib.Object {
       local_key = this.digest_key( key );
 
       try {
+         // XXX
          default_key = this.request_plain_with_key(
             "storage/crypto/keys",
             local_key
@@ -181,9 +211,6 @@ public class FoxPullEncryptor : GLib.Object {
       } catch( Error e ) {
          // TODO
       }
-
-      // TODO
-      //this.privkey = default_key[0].decode( 'base64' );
    }
 }
 

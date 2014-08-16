@@ -53,7 +53,7 @@ public class FoxPullEncryptor : GLib.Object {
       return ((string)username_hash_encoded).down();
    }
 
-   private string request_path( string path ) {
+   private string request_encrypted( string path ) {
       Soup.Session session;
       Soup.Message message;
       string url;
@@ -116,41 +116,36 @@ public class FoxPullEncryptor : GLib.Object {
       );
    }
 
-   private string decrypt_key( string key ) throws GLib.Error {
-      string data;
-      string data_decrypted;
-      Json.Parser parser;
-      Json.Object root;
-      string key_ciphertext;
-      string key_hmac;
-      string key_iv;
-
-      parser = new Json.Parser();
-      data = this.request_path( "storage/crypto/keys" );
-      parser.load_from_data( data );
-      root = parser.get_root().get_object();
-      //payload = json.loads( data['payload'] )
-
-      key_ciphertext = root.get_object_member( "payload" )
-                           .get_string_member( "ciphertext" );
-
-      key_hmac = root.get_object_member( "payload" )
-                     .get_string_member( "hmac" );
-
-      key_iv = root.get_object_member( "payload" )
-                   .get_string_member( "IV" );
-
-      //data_decrypted = this.decrypt( payload, key )
-
-      stdout.printf( "%s\n", key_ciphertext );
-
+   private string decrypt( string ciphertext, string hmac, string iv ) {
       // TODO
-      return data;
+      return ciphertext;
    }
 
-   private string decrypt( string data ) {
-      // TODO
-      return data;
+   public string request_plain( string path ) {
+      string data_ciphertext;
+      string data_hmac;
+      string data_iv;
+      string data_json;
+      Json.Parser parser;
+      Json.Object root_object;
+
+      data_json = this.request_encrypted( path );
+      parser = new Json.Parser();
+      parser.load_from_data( data_json );
+      root_object = parser.get_root().get_object();
+      //payload = json.loads( data['payload'] )
+
+      // Grab the parts of the encrypted payload.
+      data_ciphertext = root_object.get_object_member( "payload" )
+                                   .get_string_member( "ciphertext" );
+
+      data_hmac = root_object.get_object_member( "payload" )
+                             .get_string_member( "hmac" );
+
+      data_iv = root_object.get_object_member( "payload" )
+                           .get_string_member( "IV" );
+
+      return this.decrypt( data_ciphertext, data_hmac, data_iv );
    }
 
    public FoxPullEncryptor(
@@ -169,7 +164,7 @@ public class FoxPullEncryptor : GLib.Object {
       this.localkey = this.digest_key( key );
 
       try {
-         default_key = this.decrypt_key( this.localkey );
+         default_key = this.request_plain( "storage/crypto/keys" );
       } catch( Error e ) {
          // TODO
       }

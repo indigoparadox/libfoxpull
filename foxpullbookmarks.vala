@@ -92,13 +92,25 @@ public class FoxPullBookmarks : GLib.Object {
       this.bookmarks_processed++;
    }
 
-   public int foreach_bookmark( BookmarkDelegate delegator ) {
+   public int foreach_bookmark(
+      BookmarkDelegate delegator,
+      string? last_sync
+   ) {
       Json.Parser parser;
       Json.Array root_array;
       string bookmarks;
+      string request_path;
 
+      // Limit request to bookmarks newer than the given timestamp.
+      if( null == last_sync ) {
+         request_path = "storage/bookmarks";
+      } else {
+         request_path = "storage/bookmarks?newer=%s".printf( last_sync );
+      }
+
+      // Grab the list of bookmarks.
       try {
-         bookmarks = this.encryptor.request_plain( "storage/bookmarks" );
+         bookmarks = this.encryptor.request_plain( request_path );
          parser = new Json.Parser();
          parser.load_from_data( bookmarks );
          root_array = parser.get_root().get_array();
@@ -107,9 +119,9 @@ public class FoxPullBookmarks : GLib.Object {
          return -1;
       }
 
+      // Iterate, pull, and process each bookmark in detail.
       this.bookmarks_processed = 0;
       this.list_delegator = delegator;
-
       root_array.foreach_element(
          this.bookmark_callback
       );

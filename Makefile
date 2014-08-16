@@ -1,5 +1,5 @@
 
-SOURCES = foxpullencryptor.vala sslbridge.c
+SOURCES = foxpullencryptor.vala sslbridge.c foxpullbookmarks.vala
 VALAC = valac
 VALAARGS = -g
 PKGS = --pkg webkit2gtk-3.0 --pkg base32alloc --pkg json-glib-1.0 --pkg libsoup-2.4 -X -lbase32alloc -X -lssl -X -lbstrlib

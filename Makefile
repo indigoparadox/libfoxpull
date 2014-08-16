@@ -12,6 +12,7 @@ test: libfoxpull.so
 
 clean:
 	rm *.so
+	rm *.o
 	rm foxpull.h
 	rm *.vapi
 	rm test

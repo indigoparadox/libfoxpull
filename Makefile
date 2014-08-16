@@ -1,5 +1,5 @@
 
-SOURCES = encrypt.vala
+SOURCES = foxpullencryptor.vala
 VALAC = valac
 VALAARGS = -g
 PKGS = --pkg webkit2gtk-3.0 --pkg base32alloc --pkg json-glib-1.0 --pkg libsoup-2.4
@@ -12,5 +12,7 @@ test: libfoxpull.so
 
 clean:
 	rm *.so
+	rm foxpull.h
+	rm *.vapi
 	rm test
 

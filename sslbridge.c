@@ -4,6 +4,10 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
+gchar* libfoxpull_hash_hmac( guint8* key, guint8* data ) {
+
+}
+
 gchar* libfoxpull_decrypt(
    guint8* ciphertext, gint ciphertext_len, guint8* iv, guint8* key
 ) {
@@ -12,7 +16,7 @@ gchar* libfoxpull_decrypt(
    EVP_CIPHER_CTX* ctx = NULL;
    char* plaintext_out = NULL;
 
-   plaintext_out = calloc( ciphertext_len * 2, sizeof( char ) );
+   plaintext_out = g_new( gchar, ciphertext_len );
 
    ERR_load_crypto_strings();
    OpenSSL_add_all_algorithms();
@@ -21,8 +25,7 @@ gchar* libfoxpull_decrypt(
    if( !(ctx = EVP_CIPHER_CTX_new()) ) {
       BIO_dump_fp( stderr, ciphertext, ciphertext_len );
       ERR_print_errors_fp( stderr );
-      free( plaintext_out );
-      plaintext_out = NULL;
+      g_clear_pointer( &plaintext_out, g_free );
       goto cleanup;
    }
 
@@ -31,8 +34,7 @@ gchar* libfoxpull_decrypt(
    if( !EVP_DecryptInit_ex( ctx, EVP_aes_256_cbc(), NULL, key, iv ) ) {
       BIO_dump_fp( stderr, ciphertext, ciphertext_len );
       ERR_print_errors_fp( stderr );
-      free( plaintext_out );
-      plaintext_out = NULL;
+      g_clear_pointer( &plaintext_out, g_free );
       goto cleanup;
    }
 
@@ -41,8 +43,7 @@ gchar* libfoxpull_decrypt(
    ) ) {
       BIO_dump_fp( stderr, ciphertext, ciphertext_len );
       ERR_print_errors_fp( stderr );
-      free( plaintext_out );
-      plaintext_out = NULL;
+      g_clear_pointer( &plaintext_out, g_free );
       goto cleanup;
    }
    real_plaintext_len = inter_plaintext_len;
@@ -61,8 +62,7 @@ gchar* libfoxpull_decrypt(
    ) ) {
       BIO_dump_fp( stderr, ciphertext, ciphertext_len );
       ERR_print_errors_fp( stderr );
-      free( plaintext_out );
-      plaintext_out = NULL;
+      g_clear_pointer( &plaintext_out, g_free );
       goto cleanup;
    }
    real_plaintext_len += inter_plaintext_len;

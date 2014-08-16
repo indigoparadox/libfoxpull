@@ -13,8 +13,6 @@ gchar* libfoxpull_hash_hmac(
    hash_out = g_new( gchar, EVP_MAX_MD_SIZE );
    *hash_len = EVP_MAX_MD_SIZE;
 
-   printf( "%d\n", key_len );
-
    HMAC(
       EVP_sha256(), key, key_len, data, data_len, hash_out, hash_len
    );

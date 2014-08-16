@@ -99,9 +99,6 @@ public class FoxPullEncryptor : GLib.Object {
       int padding;
       uint8[] hash;
       uint hash_len = 0;
-      //GLib.Hmac key_hmac;
-      //uint8 hmac_bytes[255] = { 0 }; // Hopefully sufficient for now.
-      //size_t hmac_len = 255;
 
       // Strip out/replace invalid characters.
       normalized_key = key
@@ -124,26 +121,6 @@ public class FoxPullEncryptor : GLib.Object {
          this.userhash, 0x01
       );
 
-      /*
-      // The get_digest() method really needs work.
-      // XXX: Something wrong with GLib's Hmac algorithm.
-      key_hmac = new GLib.Hmac(
-         GLib.ChecksumType.SHA256, normalized_key_encoded
-      );
-      key_hmac.update( formatted_hash.data, formatted_hash.length );
-      key_hmac.get_digest( hmac_bytes, ref hmac_len );
-
-      // It took a lot of experimentation to find a way vala would accept to
-      // chop the rest of the buffer off.
-      var hmac_bytes_trim = new uint8[hmac_len];
-      for( int i = 0 ; i < hmac_len ; i++ ) {
-         hmac_bytes_trim[i] = hmac_bytes[i];
-      }
-      */
-
-      //stdout.printf( "%s\n", normalized_key_encoded );
-      //stdout.printf( "%d\n", normalized_key_encoded.length );
-
       hash = libfoxpull_hash_hmac( 
          normalized_key_decoded, normalized_key_decoded_len,
          formatted_hash.data, formatted_hash.length,
@@ -151,36 +128,12 @@ public class FoxPullEncryptor : GLib.Object {
       );
 
       return hash;
-
-      // Encode the binary checksum and return it.
-      /*
-      username_hash_encoded = Base32.encode( checksum_bytes_trim );
-      return ((string)username_hash_encoded).down();
-      */
-
-      /*
-      return GLib.Hmac.compute_for_string(
-         GLib.ChecksumType.SHA256,
-         normalized_key_encoded,
-         formatted_hash
-      ).data;
-      */
    }
-
-   /*
-   private string decrypt(
-      string ciphertext, string hmac, string iv, uint8[] key
-   ) {
-      // TODO
-      return ciphertext;
-   }
-   */
 
    private string request_plain_with_key(
       string path, uint8[] key
    ) throws GLib.Error {
       string data_ciphertext;
-      //string data_hmac;
       string data_iv;
       string data_json;
       uint8[] data_ciphertext_decoded;
@@ -202,21 +155,10 @@ public class FoxPullEncryptor : GLib.Object {
 
       data_ciphertext_decoded = GLib.Base64.decode( data_ciphertext );
 
-      stdout.printf( "%s\n", data_ciphertext );
-      //stdout.printf( "%s\n", data_ciphertext_decoded );
-
-      /*
-      data_hmac = root_object.get_object_member( "payload" )
-                             .get_string_member( "hmac" );
-      */
-
       data_iv = root_object.get_object_member( "payload" )
                            .get_string_member( "IV" );
 
       data_iv_decoded = GLib.Base64.decode( data_iv );
-
-      stdout.printf( "%d\n", data_iv_decoded.length );
-      stdout.printf( "%s\n", GLib.Base64.encode( (uchar[])key ) );
 
       if( null == (data_plaintext = libfoxpull_decrypt( 
          data_ciphertext_decoded,
@@ -226,9 +168,6 @@ public class FoxPullEncryptor : GLib.Object {
       )) ) {
          // TODO
       }
-      //return this.decrypt( data_ciphertext, data_hmac, data_iv, key );
-
-      stdout.printf( "%s\n", data_plaintext );
 
       return data_plaintext;
    }
@@ -252,10 +191,7 @@ public class FoxPullEncryptor : GLib.Object {
       this.password = password;
       local_key = this.digest_key( key );
 
-      stdout.printf( "local key: %s\n", (string)local_key );
-
       try {
-         // XXX
          default_key = this.request_plain_with_key(
             "storage/crypto/keys",
             local_key

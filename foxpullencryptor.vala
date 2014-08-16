@@ -57,6 +57,7 @@ public class FoxPullEncryptor : GLib.Object {
       Soup.Session session;
       Soup.Message message;
       string url;
+      string data;
 
       // Build the URL to the path on our sync server.
       url = "%s/%s/%s/%s".printf(
@@ -71,10 +72,16 @@ public class FoxPullEncryptor : GLib.Object {
       message = new Soup.Message( "GET", url );
       session.send_message( message );
 
-      // XXX
-      return (string)message.response_body.flatten().data;
+      // TODO: Check for errors.
+      data = (string)message.response_body.flatten().data;
 
-      //r = requests.get( url, auth=(self.userhash, self.password) )
+      // FF Sync seems to return some wonky JSON with quoted objects.
+      data = data
+         .replace( "\"{", "{" )
+         .replace( "}\"", "}" )
+         .replace( "\\\"", "\"" );
+
+      return data;
    }
 
    private string digest_key( string key ) {
@@ -109,22 +116,39 @@ public class FoxPullEncryptor : GLib.Object {
       );
    }
 
-   private string decrypt_key( string key ) {
+   private string decrypt_key( string key ) throws GLib.Error {
       string data;
       string data_decrypted;
+      Json.Parser parser;
+      Json.Object root;
+      string key_ciphertext;
+      string key_hmac;
+      string key_iv;
 
+      parser = new Json.Parser();
       data = this.request_path( "storage/crypto/keys" );
+      parser.load_from_data( data );
+      root = parser.get_root().get_object();
       //payload = json.loads( data['payload'] )
+
+      key_ciphertext = root.get_object_member( "payload" )
+                           .get_string_member( "ciphertext" );
+
+      key_hmac = root.get_object_member( "payload" )
+                     .get_string_member( "hmac" );
+
+      key_iv = root.get_object_member( "payload" )
+                   .get_string_member( "IV" );
 
       //data_decrypted = this.decrypt( payload, key )
 
-      stdout.printf( "%s\n", data );
+      stdout.printf( "%s\n", key_ciphertext );
 
       // TODO
       return data;
    }
 
-   public string decrypt( string data ) {
+   private string decrypt( string data ) {
       // TODO
       return data;
    }
@@ -144,7 +168,11 @@ public class FoxPullEncryptor : GLib.Object {
       // self.node = self._request_node().rstrip( '/' )
       this.localkey = this.digest_key( key );
 
-      default_key = this.decrypt_key( this.localkey );
+      try {
+         default_key = this.decrypt_key( this.localkey );
+      } catch( Error e ) {
+         // TODO
+      }
 
       //stdout.printf( "%s\n", default_key );
 

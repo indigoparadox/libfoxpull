@@ -172,6 +172,25 @@ public class FoxPullEncryptor : GLib.Object {
       return data_plaintext;
    }
 
+   private uint8[] request_key(
+      string path, uint8[] key
+   ) throws GLib.Error {
+      string key_json;
+      string key_encoded;
+      Json.Parser parser;
+      Json.Object root_object;
+
+      key_json = this.request_plain_with_key( path, key );
+      parser = new Json.Parser();
+      parser.load_from_data( key_json );
+      root_object = parser.get_root().get_object();
+
+      key_encoded = root_object.get_array_member( "default" )
+                               .get_string_element( 0 );
+
+      return GLib.Base64.decode( key_encoded );
+   }
+
    public string request_plain( string path ) throws GLib.Error {
       return this.request_plain_with_key( path, this.privkey );
    }
@@ -182,7 +201,6 @@ public class FoxPullEncryptor : GLib.Object {
       string password,
       string key
    ) {
-      string default_key;
       uint8[] local_key;
 
       // Setup member fields.
@@ -192,11 +210,10 @@ public class FoxPullEncryptor : GLib.Object {
       local_key = this.digest_key( key );
 
       try {
-         default_key = this.request_plain_with_key(
+         this.privkey = this.request_key(
             "storage/crypto/keys",
             local_key
          );
-         this.privkey = GLib.Base64.decode( default_key );
       } catch( Error e ) {
          // TODO
       }

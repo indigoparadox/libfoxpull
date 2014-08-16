@@ -123,11 +123,7 @@ public class FoxPullEncryptor : GLib.Object {
       return ciphertext;
    }
 
-   public string request_plain( string path ) throws GLib.Error {
-      return this.request_plain_with_key( path, this.privkey );
-   }
-
-   public string request_plain_with_key(
+   private string request_plain_with_key(
       string path, uint8[] key
    ) throws GLib.Error {
       string data_ciphertext;
@@ -155,6 +151,10 @@ public class FoxPullEncryptor : GLib.Object {
                            .get_string_member( "IV" );
 
       return this.decrypt( data_ciphertext, data_hmac, data_iv, key );
+   }
+
+   public string request_plain( string path ) throws GLib.Error {
+      return this.request_plain_with_key( path, this.privkey );
    }
 
    public FoxPullEncryptor(

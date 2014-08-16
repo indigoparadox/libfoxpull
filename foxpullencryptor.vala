@@ -18,9 +18,13 @@
 using GLib;
 using Soup;
 
+/* Functions from SSL bridge. */
 extern string libfoxpull_decrypt( 
    uint8* ciphertext, int ciphertext_len,
    uint8* iv, uint8* key
+);
+extern uint8[] libfoxpull_hash_hmac( 
+   uint8* key, int key_len, uint8* data, int data_len, ref uint hash_len
 );
 
 public class FoxPullEncryptor : GLib.Object {
@@ -89,12 +93,15 @@ public class FoxPullEncryptor : GLib.Object {
 
    private uint8[] digest_key( string key ) {
       string normalized_key;
-      unowned uint8[] normalized_key_encoded;
+      unowned uint8[] normalized_key_decoded;
+      int normalized_key_decoded_len = 0;
       string formatted_hash;
       int padding;
-      GLib.Hmac key_hmac;
-      uint8 hmac_bytes[255] = { 0 }; // Hopefully sufficient for now.
-      size_t hmac_len = 255;
+      uint8[] hash;
+      uint hash_len = 0;
+      //GLib.Hmac key_hmac;
+      //uint8 hmac_bytes[255] = { 0 }; // Hopefully sufficient for now.
+      //size_t hmac_len = 255;
 
       // Strip out/replace invalid characters.
       normalized_key = key
@@ -108,13 +115,16 @@ public class FoxPullEncryptor : GLib.Object {
       for( int i = 0; padding > i ; i++ ) {
          normalized_key.concat( "=" );
       }
-      normalized_key_encoded = Base32.decode( normalized_key.data );
+      normalized_key_decoded = Base32.decode(
+         normalized_key.data, ref normalized_key_decoded_len
+      );
 
       // '{}{}\x01'.format( 'Sync-AES_256_CBC-HMAC256', self.userhash ),
       formatted_hash = "Sync-AES_256_CBC-HMAC256%s%c".printf(
          this.userhash, 0x01
       );
 
+      /*
       // The get_digest() method really needs work.
       // XXX: Something wrong with GLib's Hmac algorithm.
       key_hmac = new GLib.Hmac(
@@ -129,10 +139,18 @@ public class FoxPullEncryptor : GLib.Object {
       for( int i = 0 ; i < hmac_len ; i++ ) {
          hmac_bytes_trim[i] = hmac_bytes[i];
       }
+      */
 
-      stdout.printf( "hmac bytes: %s\n", (string)hmac_bytes_trim );
+      //stdout.printf( "%s\n", normalized_key_encoded );
+      //stdout.printf( "%d\n", normalized_key_encoded.length );
 
-      return hmac_bytes_trim;
+      hash = libfoxpull_hash_hmac( 
+         normalized_key_decoded, normalized_key_decoded_len,
+         formatted_hash.data, formatted_hash.length,
+         ref hash_len
+      );
+
+      return hash;
 
       // Encode the binary checksum and return it.
       /*

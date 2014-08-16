@@ -3,9 +3,25 @@
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include <openssl/hmac.h>
 
-gchar* libfoxpull_hash_hmac( guint8* key, guint8* data ) {
+gchar* libfoxpull_hash_hmac( 
+   guint8* key, gint key_len, guint8* data, gint data_len, guint* hash_len
+) {
+   guint8* hash_out = NULL;
 
+   hash_out = g_new( gchar, EVP_MAX_MD_SIZE );
+   *hash_len = EVP_MAX_MD_SIZE;
+
+   printf( "%d\n", key_len );
+
+   HMAC(
+      EVP_sha256(), key, key_len, data, data_len, hash_out, hash_len
+   );
+
+cleanup:
+   
+   return hash_out;
 }
 
 gchar* libfoxpull_decrypt(
@@ -14,7 +30,7 @@ gchar* libfoxpull_decrypt(
    int inter_plaintext_len = 0;
    int real_plaintext_len = 0;
    EVP_CIPHER_CTX* ctx = NULL;
-   char* plaintext_out = NULL;
+   gchar* plaintext_out = NULL;
 
    plaintext_out = g_new( gchar, ciphertext_len );
 

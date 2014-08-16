@@ -18,7 +18,7 @@
 using GLib;
 using Soup;
 
-extern unowned string libfoxpull_decrypt( 
+extern string libfoxpull_decrypt( 
    uint8* ciphertext, int ciphertext_len,
    uint8* iv, uint8* key
 );
@@ -167,7 +167,7 @@ public class FoxPullEncryptor : GLib.Object {
       string data_json;
       uint8[] data_ciphertext_decoded;
       uint8[] data_iv_decoded;
-      unowned string data_plaintext;
+      string data_plaintext;
       Json.Parser parser;
       Json.Object root_object;
 

@@ -11,9 +11,5 @@ test: libfoxpull.so
 	$(VALAC) $(VALAARGS) --vapidir=. --pkg libfoxpull --pkg json-glib-1.0 -X -I. -X -L. -X -lfoxpull test.vala
 
 clean:
-	rm *.so
-	rm *.o
-	rm foxpull.h
-	rm *.vapi
-	rm test
+	rm *.so ; rm *.o ; rm foxpull.h ; rm *.vapi ; rm test
 

@@ -20,7 +20,6 @@ public class FoxPullBookmarks : GLib.Object {
 
    private int bookmarks_processed;
    private BookmarkDelegate list_delegator;
-   private string[] building_string;
 
    private void bookmark_callback(
       Json.Array array,
@@ -30,8 +29,8 @@ public class FoxPullBookmarks : GLib.Object {
       string bm_id = element_node.get_string();
       string bm_path = "storage/bookmarks/%s".printf( bm_id );
       string bm_json;
-      string[] bm_tags = {};
-      string[] bm_children = {};
+      GenericArray<string> bm_tags = new GenericArray<string>();
+      GenericArray<string> bm_children = new GenericArray<string>();
       Json.Parser parser;
       Json.Object root_object;
       
@@ -45,13 +44,21 @@ public class FoxPullBookmarks : GLib.Object {
          //stdout.printf( "%s\n", bm_json );
 
          // TODO
-         /*root_object.get_array_member( "children" ).foreach_element(
-            ( array, index, element_node ) => {
-               //this.building_string.append( element_node.get_string() );
-            }
-         );*/
+         if( root_object.has_member( "children" ) ) {
+            root_object.get_array_member( "children" ).foreach_element(
+               ( array, index, element_node ) => {
+                  bm_children.add( element_node.get_string() );
+               }
+            );
+         }
 
-         //root_object.get_array_member( "tags" ),
+         if( root_object.has_member( "tags" ) ) {
+            root_object.get_array_member( "tags" ).foreach_element(
+               ( array, index, element_node ) => {
+                  bm_tags.add( element_node.get_string() );
+               }
+            );
+         }
 
          if( null != root_object ) {
             this.list_delegator(
@@ -66,14 +73,14 @@ public class FoxPullBookmarks : GLib.Object {
                root_object.has_member( "description" ) &&
                   null != root_object.get_string_member( "description" ) ?
                   root_object.get_string_member( "description" ) : "",
-               bm_children,
+               (string[])bm_children.data,
                root_object.has_member( "parentid" ) &&
                   null != root_object.get_string_member( "parentid" ) ?
                   root_object.get_string_member( "parentid" ) : "",
                root_object.has_member( "bmkUri" ) &&
                   null != root_object.get_string_member( "bmkUri" ) ?
                   root_object.get_string_member( "bmkUri" ) : "",
-               bm_tags,
+               (string[])bm_tags.data,
                root_object.has_member( "keyword" ) &&
                   null != root_object.get_string_member( "keyword" ) ?
                   root_object.get_string_member( "keyword" ) : "",
@@ -121,7 +128,13 @@ public class FoxPullBookmarks : GLib.Object {
 
       // Iterate, pull, and process each bookmark in detail.
       this.bookmarks_processed = 0;
-      this.list_delegator = delegator;
+      this.list_delegator = ( // https://stackoverflow.com/questions/16693847/how-to-get-rid-of-the-vala-compilation-warning-copying-delegates-is-discouraged
+         id, type, parent_name, title, description, children, parent_id,
+         bmk_uri, tags, keyword, load_in_sidebar, deleted
+      ) => { delegator(
+         id, type, parent_name, title, description, children, parent_id,
+         bmk_uri, tags, keyword, load_in_sidebar, deleted
+      ); };
       root_array.foreach_element(
          this.bookmark_callback
       );

@@ -19,11 +19,16 @@ using GLib;
 using Soup;
 using Json;
 
+errordomain FoxPullError {
+   Decrypt
+}
+
 /* Functions from SSL bridge. */
 extern string libfoxpull_decrypt( 
    uint8* ciphertext, int ciphertext_len,
    uint8* iv, uint8* key
 );
+
 extern uint8[] libfoxpull_hash_hmac( 
    uint8* key, int key_len, uint8* data, int data_len, ref uint hash_len
 );
@@ -150,10 +155,16 @@ public class FoxPullEncryptor : GLib.Object {
       parser.load_from_data( data_json );
       root_object = parser.get_root().get_object();
 
-      // TODO: Handle missing payload.
+      // Handle missing payload.
+      try {
+         payload_object = root_object.get_object_member( "payload" );
+      } catch( Error e ) {
+         throw new FoxPullError.Decrypt(
+            "Unable to retrive payload from server response."
+         );
+      }
 
       // Grab the parts of the encrypted payload.
-      payload_object = root_object.get_object_member( "payload" );
       if( null != payload_object ) {
          data_ciphertext = payload_object.get_string_member( "ciphertext" );
          data_ciphertext_decoded = GLib.Base64.decode( data_ciphertext );
@@ -166,7 +177,9 @@ public class FoxPullEncryptor : GLib.Object {
             data_iv_decoded,
             key
          )) ) {
-            // TODO
+            throw new FoxPullError.Decrypt(
+               "Decryption returned null result."
+            );
          }
       } else {
          data_plaintext = data_json;
@@ -212,14 +225,10 @@ public class FoxPullEncryptor : GLib.Object {
       this.password = password;
       local_key = this.digest_key( key );
 
-      try {
-         this.privkey = this.request_key(
-            "storage/crypto/keys",
-            local_key
-         );
-      } catch( Error e ) {
-         // TODO
-      }
+      this.privkey = this.request_key(
+         "storage/crypto/keys",
+         local_key
+      );
    }
 }
 

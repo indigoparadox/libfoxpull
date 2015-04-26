@@ -91,7 +91,7 @@ public class FoxPullBookmarks : GLib.Object {
             );
          }
       } catch( GLib.Error e ) {
-         // TODO
+         warning( e.message );
          return;
       }
 
@@ -122,7 +122,7 @@ public class FoxPullBookmarks : GLib.Object {
          parser.load_from_data( bookmarks );
          root_array = parser.get_root().get_array();
       } catch( GLib.Error e ) {
-         // TODO
+         warning( e.message );
          return -1;
       }
 
